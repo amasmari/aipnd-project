@@ -239,7 +239,7 @@ def load_checkpoint(checkpoint_path="save_checkpoint.pth"):
     else:
         map_location='cpu'
 
-    checkpoint = torch.load(pathname, map_location=map_location)
+    checkpoint = torch.load(checkpoint_path, map_location=map_location)
     
     model= eval("models."+checkpoint["arch"]+"(pretrained=True)")      
     for param in model.parameters():
