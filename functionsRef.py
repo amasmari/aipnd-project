@@ -39,11 +39,14 @@ def cat_to_name(file='cat_to_name.json'):
 
 
 """
+def make_classifier(n_input=25088,h_nodes=[1024,512,256],n_output=102,dropout=0.5):
 -n_input: how many inputs to the classifier are giver defult=25088 ;since defult arch is vgg16
 -nodes: a list of hidden nodes count defult=[5120,512]; since this is what I did in my model, but expcet the user to enter different values.
 -n_output: the number of labesl expected at the end. defult = 102; labels of flowers
+
+Returns: a classfier that has to be assigned to a neme in the code.
 """
-def make_classifier(n_input=25088,h_nodes=[5120,512],n_output=102,dropout=0.5):
+def make_classifier(n_input=25088,h_nodes=[1024,512,256],n_output=102,dropout=0.5):
     try:
         Lst_classifier = ["nn.Sequential(OrderedDict([('A',nn.Linear(",str(n_input)+","]
         for i in range(len(h_nodes)):
@@ -73,14 +76,16 @@ make_model(device,arch="vgg16",n_input=25088,h_nodes=[5120],n_output=102,dropout
     -n_output: the number of labesl expected at the end. defult = 102; labels of flowers
     -dropout: the dropour precentage in float format defult = 0.5 as 50%
     -learning_rate: the learning rate for backpropogation. defult=0.001
+Returns the model, critertion, and optimizer; these have to be assigned to variable names since they are made in-function
 """
-def make_model(device=Device,arch="vgg16",n_input=25088,h_nodes=[5120,1024,256],n_output=102,dropout=0.5,learning_rate=0.001):
+def make_model(device=Device,arch="vgg16",h_nodes=[5120,1024,256],n_output=102,dropout=0.5,learning_rate=0.001):
 
     if True:
         declaring = "models."+arch.strip()+"(pretrained=True)"
         model = eval(declaring)
         for m in model.parameters():
             m.requires_grad = False
+        n_input = model.fc.in_features
         classifier = make_classifier(n_input,h_nodes,n_output,dropout)
         model.classifier = classifier
         criterion = nn.NLLLoss()
@@ -97,6 +102,10 @@ train_network(model=model,optimizer=optimizer,criterion=criterion,device=Device,
 -print_every: number of propogations between each printing count
 -train_dataloaders: the loader to the traning dataset
 -valid_dataloaders: the loader to the validation dataset
+
+Effect:
+-no returns, just train the model in place using the training dataset while also showing valdiating results every specified number of steps
+
 Note:the same funtions as the notebook, but defined the variavbes called within that were defined before).
 """
 def train_network( model,optimizer,criterion,train_dataloaders,valid_dataloaders,device=Device,epochs=12,print_every=40):
@@ -118,7 +127,7 @@ def train_network( model,optimizer,criterion,train_dataloaders,valid_dataloaders
                 optimizer.step()
 
                 running_loss += loss.item()
-                #printing info about the pass every "print_every" value
+                #Validation info about the pass every "print_every" value
                 if steps % print_every == 0:
                     model.eval()
                     accuracy = 0
@@ -139,11 +148,17 @@ def train_network( model,optimizer,criterion,train_dataloaders,valid_dataloaders
                     running_loss = 0
                     model.train()
 
+
+
+
 """
+def test_network(model, test_dataloaders,device=Device):
 -model: to model to be trained
 -device: "cuda" or "cpu" defult = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 -test_dataloaders: the loader to the testing dataset
 Note:the same funtions as th notebook, but defined the variavbes called within that were defined before).
+Effect:
+-no returns, just test the model on the test dataset using the test_dataloder and print the results while executing.
 """                       
 def test_network(model, test_dataloaders,device=Device):
 
@@ -165,11 +180,15 @@ def test_network(model, test_dataloaders,device=Device):
   
     
 
+
 """
+def save_checkpoint(model,train_datasets,arch="vgg16",save_name='save_checkpoint.pth',save_dir=''):
 -model: the model to be stored
 -arch: archtecture of the mode. defult = "vgg16" similar to the other defults
 ; I could not do this without the arch explecitly stated in way that is not all sting editing (which I feel could be improved to a better alterntive)
 a function that store all the necesary information to rebuild the model as is
+Returns:
+- no returns, but it generate a save file in the directory
 """
 def save_checkpoint(model,train_datasets,arch="vgg16",save_name='save_checkpoint.pth',save_dir=''):
 
@@ -181,10 +200,14 @@ def save_checkpoint(model,train_datasets,arch="vgg16",save_name='save_checkpoint
     save_place = save_dir + save_name
     torch.save(checkpoint, save_place)
 
+
     
 """
--classifier_str: the string version of model.classifier bu str() tp be fed to the function that execute an execution ready version.
+def load_classifier(classifier_str):
 
+-classifier_str: the string version of model.classifier bu str() tp be fed to the function that execute an execution ready version.
+Returns:
+-it return a classifier object in way similar to make_classifier function
 """
 def load_classifier(classifier_str):
 
@@ -193,19 +216,31 @@ def load_classifier(classifier_str):
             A = classifier_str.replace("(((","(").replace(")))",")")
         else:
             A = classifier_str
-        B = A.replace("Sequential(\n","nn.Sequential(OrderedDict([(").replace("\n","),(").replace(":", "',nn.").replace("  ","'").replace(")),()","dim=1))]))")
+        B = A.replace("Sequential(\n","nn.Sequential(OrderedDict([(").replace("\n","),(").replace(":", "',nn.").replace("  ","'").replace(")),()","))]))")
         B = B.replace("'(","'").replace(")'","'")
         
         B = str(B)
     classifier = eval(B)
        
     return classifier 
-"""
--checkpoint_path: the path to the checkpoint we made wehn we saved the model
+
+
 """
 def load_checkpoint(checkpoint_path="save_checkpoint.pth"):
 
-    checkpoint = torch.load(checkpoint_path)
+-checkpoint_path: the path to the checkpoint we made wehn we saved the model
+Returns: a model from loading the whole model stats 
+"""
+def load_checkpoint(checkpoint_path="save_checkpoint.pth"):
+    #after intially having issues loading the files onc CPU after GPU training, Udacity reviwer refered to this stackoverflow post for solutioins
+    #https://stackoverflow.com/questions/55759311/runtimeerror-cuda-runtime-error-35-cuda-driver-version-is-insufficient-for
+    if torch.cuda.is_available():
+        map_location=lambda storage, loc: storage.cuda()
+    else:
+        map_location='cpu'
+
+    checkpoint = torch.load(pathname, map_location=map_location)
+    
     model= eval("models."+checkpoint["arch"]+"(pretrained=True)")      
     for param in model.parameters():
         param.requires_grad = False
@@ -218,33 +253,56 @@ def load_checkpoint(checkpoint_path="save_checkpoint.pth"):
 
 
 """
+def process_image(image):
     -image: the image full directory to the .../image.jpg 
     same as my notebook version
     -transform: a transform that do all the resizing, croping, and normalization
     
     Scales, crops, and normalizes a PIL image for a PyTorch model,
     returns an Numpy array
+Returns:
+    -the image in a numpy array format
 """
 
-def process_image(image,transform):
-
+def process_image(image):
+    ''' Scales, crops, and normalizes a PIL image for a PyTorch model,
+        returns an Numpy array
+    '''
     # TODO: Process a PIL image for use in a PyTorch model
     image_pil = PIL.Image.open(image)
+    #image_np= np.array(test_transform(image_pil))
     
-    image_np= np.array(transform(image_pil))
-
+    if image_pil.size[0] > image_pil.size[1]:
+        image_pil.thumbnail((5000,256))
+    else:
+        image_pil.thumbnail((256,5000))
+    #(0,0) at the top left
+    left = (image_pil.width-224)/2
+    right = 244 + left
+    top =  (image_pil.height-224)/2
+    bottom = 244 + top
+    image_pil = image_pil.crop((left, top, right, bottom)) 
+    
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+    image_np = np.array(image_pil)/255
+    image_np = (image_np - mean) / std
+    image_np = image_np.transpose((2, 0, 1))
     return image_np
 
+    '''
 def predict(image_path, model, device, cat_to_name, transform,topk=5):
-    ''' 
     Predict the class (or classes) of an image using a trained deep learning model.
     image_path: the path to the image intended to be predicted
     model: the model to be used
     topk: the number of presented top predection; defult = 5
     Note:same function as my notebook
-    '''    
-    image_np = process_image(image_path,transform)
+    ''' 
+
+def predict(image_path, model, device, cat_to_name, transform,topk=5):   
+    image_np = process_image(image_path)
     inputs = torch.from_numpy(image_np)
+    inputs=inputs.float()
     inputs = inputs.to(device)
     inputs = inputs.unsqueeze(0)
     model.to(device)
@@ -252,9 +310,11 @@ def predict(image_path, model, device, cat_to_name, transform,topk=5):
     Ps = torch.exp(Forward_pass)
     Pk,idxs = Ps.topk(topk)
     Pk = Pk.tolist()[0]
+    idx_to_class = { v : k for k,v in model.class_to_idx.items()}
+    names = list()
     #print(Pk)
-    names =[]
     for idx in idxs.tolist()[0]:
-        idx +=1
-        names.append(cat_to_name[str(idx)])
+        Class = idx_to_class[idx]
+        name = cat_to_name[Class]
+        names.append(name)
     return names, Pk

@@ -36,7 +36,7 @@ model = functionsRef.load_checkpoint(arguments.checkpoint)
 
 
 #predict
-Predictions = functionsRef.predict(arguments.input_path, model, arguments.device,cat_name,transform_img, arguments.topk)
+Predictions = functionsRef.predict(arguments.input_path, model, arguments.device,cat_name, arguments.topk)
 
 #show predctions:
 names = Predictions[0]
