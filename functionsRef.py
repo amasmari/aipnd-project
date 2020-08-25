@@ -85,7 +85,7 @@ def make_model(device=Device,arch="vgg16",h_nodes=[5120,1024,256],n_output=102,d
         model = eval(declaring)
         for m in model.parameters():
             m.requires_grad = False
-        n_input = model.fc.in_features
+        n_input = model.classifier[0].in_features
         classifier = make_classifier(n_input,h_nodes,n_output,dropout)
         model.classifier = classifier
         criterion = nn.NLLLoss()
