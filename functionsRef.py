@@ -36,37 +36,6 @@ def cat_to_name(file='cat_to_name.json'):
         cat_to_name = json.load(f)
     return cat_to_name
 
-
-
-"""
-def make_classifier(n_input=25088,h_nodes=[1024,512,256],n_output=102,dropout=0.5):
--n_input: how many inputs to the classifier are giver defult=25088 ;since defult arch is vgg16
--nodes: a list of hidden nodes count defult=[5120,512]; since this is what I did in my model, but expcet the user to enter different values.
--n_output: the number of labesl expected at the end. defult = 102; labels of flowers
-
-Returns: a classfier that has to be assigned to a neme in the code.
-"""
-def make_classifier(n_input=25088,h_nodes=[1024,512,256],n_output=102,dropout=0.5):
-    try:
-        Lst_classifier = ["nn.Sequential(OrderedDict([('A',nn.Linear(",str(n_input)+","]
-        for i in range(len(h_nodes)):
-            h = h_nodes[i]
-            if type(h) != int: #to make sure it is a number
-                print("the hidden layer must be filled with intger number for each layer")
-                return None
-            IR, ID, IL = str(i)+'R',str(i)+'D',str(i)+'R'
-            Str_hidden = "{})),('{}', nn.ReLU()),('{}',nn.Dropout(p={})),('{}',nn.Linear({},".format(h,IR,ID,dropout,IL,h)
-            Lst_classifier.append(Str_hidden)
-        Lst_classifier.append("{})),('Logmax',nn.LogSoftmax(dim=1))]))".format(n_output))
-        Str_classifier =''.join(Lst_classifier)
-    except Exception as e:
-        print(e)
-        return None
-    classifier = eval(Str_classifier)
-    return classifier
-
-
-
 """
 make_model(device,arch="vgg16",n_input=25088,h_nodes=[5120],n_output=102,dropout=0.5,learning_rate=0.001)
     -device: "cuda" or "cpu" defult = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -80,12 +49,40 @@ Returns the model, critertion, and optimizer; these have to be assigned to varia
 """
 def make_model(device=Device,arch="vgg16",h_nodes=[5120,1024,256],n_output=102,dropout=0.5,learning_rate=0.001):
 
-    if True:
+    if True: #replace with serever coneection check if ran in a server
         declaring = "models."+arch.strip()+"(pretrained=True)"
         model = eval(declaring)
         for m in model.parameters():
             m.requires_grad = False
         n_input = model.classifier[0].in_features
+"""
+a function that make the dsired calssfier by editing the text of the code in a wat that make the classfier as desired.
+def make_classifier(n_input=25088,h_nodes=[1024,512,256],n_output=102,dropout=0.5):
+-n_input: how many inputs to the classifier are giver defult=25088 ;since defult arch is vgg16
+-nodes: a list of hidden nodes count defult=[5120,512]; since this is what I did in my model, but expcet the user to enter different values.
+-n_output: the number of labesl expected at the end. defult = 102; labels of flowers
+
+Returns: a classfier that has to be assigned to a neme in the code.
+"""
+        def make_classifier(n_input=25088,h_nodes=[1024,512,256],n_output=102,dropout=0.5):
+            try:
+                Lst_classifier = ["nn.Sequential(OrderedDict([('A',nn.Linear(",str(n_input)+","]
+                for i in range(len(h_nodes)):
+                    h = h_nodes[i]
+                    if type(h) != int: #to make sure it is a number
+                        print("the hidden layer must be filled with intger number for each layer")
+                        return None
+                    IR, ID, IL = str(i)+'R',str(i)+'D',str(i)+'R'
+                    Str_hidden = "{})),('{}', nn.ReLU()),('{}',nn.Dropout(p={})),('{}',nn.Linear({},".format(h,IR,ID,dropout,IL,h)
+                    Lst_classifier.append(Str_hidden)
+                Lst_classifier.append("{})),('Logmax',nn.LogSoftmax(dim=1))]))".format(n_output))
+                Str_classifier =''.join(Lst_classifier)
+            except Exception as e:
+                print(e)
+                return None
+            classifier = eval(Str_classifier)
+            return classifier
+
         classifier = make_classifier(n_input,h_nodes,n_output,dropout)
         model.classifier = classifier
         criterion = nn.NLLLoss()
@@ -201,30 +198,6 @@ def save_checkpoint(model,train_datasets,arch="vgg16",save_name='save_checkpoint
     torch.save(checkpoint, save_place)
 
 
-    
-"""
-def load_classifier(classifier_str):
-
--classifier_str: the string version of model.classifier bu str() tp be fed to the function that execute an execution ready version.
-Returns:
--it return a classifier object in way similar to make_classifier function
-"""
-def load_classifier(classifier_str):
-
-    if True:
-        if "(((" in classifier_str:
-            A = classifier_str.replace("(((","(").replace(")))",")")
-        else:
-            A = classifier_str
-        B = A.replace("Sequential(\n","nn.Sequential(OrderedDict([(").replace("\n","),(").replace(":", "',nn.").replace("  ","'").replace(")),()","))]))")
-        B = B.replace("'(","'").replace(")'","'")
-        
-        B = str(B)
-    classifier = eval(B)
-       
-    return classifier 
-
-
 """
 def load_checkpoint(checkpoint_path="save_checkpoint.pth"):
 
@@ -234,6 +207,8 @@ Returns: a model from loading the whole model stats
 def load_checkpoint(checkpoint_path="save_checkpoint.pth"):
     #after intially having issues loading the files onc CPU after GPU training, Udacity reviwer refered to this stackoverflow post for solutioins
     #https://stackoverflow.com/questions/55759311/runtimeerror-cuda-runtime-error-35-cuda-driver-version-is-insufficient-for
+    
+    #loading the model archticture
     if torch.cuda.is_available():
         map_location=lambda storage, loc: storage.cuda()
     else:
@@ -244,11 +219,37 @@ def load_checkpoint(checkpoint_path="save_checkpoint.pth"):
     model= eval("models."+checkpoint["arch"]+"(pretrained=True)")      
     for param in model.parameters():
         param.requires_grad = False
+    #loading the map of class to index 
     model.class_to_idx = checkpoint['class_to_idx']
+    
+    #loading the classfier
+    def load_classifier(classifier_str):
+"""
+def load_classifier(classifier_str):
+
+-classifier_str: the string version of model.classifier bu str() tp be fed to the function that execute an execution ready version.
+Returns:
+-it return a classifier object in way similar to make_classifier function
+"""
+        if True:
+            if "(((" in classifier_str:
+                A = classifier_str.replace("(((","(").replace(")))",")")
+            else:
+                A = classifier_str
+            B = A.replace("Sequential(\n","nn.Sequential(OrderedDict([(").replace("\n","),(").replace(":", "',nn.").replace("  ","'").replace(")),()","))]))")
+            B = B.replace("'(","'").replace(")'","'")
+
+            B = str(B)
+        classifier = eval(B)
+
+        return classifier 
+    
     classifier = load_classifier(checkpoint['classifier'])
     model.classifier = classifier
+    
+    #loading the states of the model and its paramters as it was when saved
     model.load_state_dict(checkpoint['model_state_dict'])
-    #print(model)
+    #returning the model after loading its paers
     return model
 
 
